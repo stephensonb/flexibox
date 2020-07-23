@@ -1,0 +1,288 @@
+/* === GLOBAL VARIABLES === */
+
+:root {
+  /* === BACKGROUNDS === */
+  --flexibox-background-image-grid: linear-gradient(to right, var(--flexibox-color-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--flexibox-color-grid) 1px, transparent 1px);
+
+  /* === BORDERS === */
+  --flexibox-border-adornment-area: 10px solid var(--flexibox-color-bg-grid);
+  --flexibox-border-drag: 4px solid var(--flexibox-color-border-drag);
+  --flexibox-border-resize: 7px solid var(--flexibox-color-border-resize);
+  --flexibox-border-content: 1px solid var(--flexibox-color-border-content); 
+  --flexibox-border-radius-content: 4px;
+  --flexibox-border-radius-resize-nw: 3px 2px 0px 2px;
+  --flexibox-border-radius-resize-ne: 2px 3px 2px 0px;
+  --flexibox-border-radius-resize-sw: 2px 0px 2px 3px;
+  --flexibox-border-radius-resize-se: 0px 2px 3px 2px;
+  --flexibox-border-style-resize-nw: solid hidden hidden solid;
+  --flexibox-border-style-resize-ne: solid solid hidden hidden;
+  --flexibox-border-style-resize-sw: hidden hidden solid solid;
+  --flexibox-border-style-resize-se: hidden solid solid hidden;
+  /* pseudo class styles */
+  --flexibox-active-border-drag: 3px solid var(--flexibox-hover-color-border-drag);
+  --flexibox-hover-border-drag: 3px solid var(--flexibox-hover-color-border-drag);
+
+  /* === BOX SHADOWS */
+  /* pseudo class styles */
+  --flexibox-active-box-shadow-drag: 0px 0px 5px 2px var(--flexibox-hover-color-border-drag);
+  --flexibox-hover-box-shadow-drag: 0px 0px 5px 2px var(--flexibox-hover-color-border-drag);
+
+  /* === COLORS === */
+  --flexibox-color-grid: grey;
+  --flexibox-color-bg: rgb(230, 230, 230);
+  --flexibox-color-bg-content: rgb(230, 230, 230);
+  --flexibox-color-bg-grid: rgb(70, 70, 70);
+  --flexibox-color-bg-resize: rgb(20, 20, 20);
+  --flexibox-color-bg-widgets-connections: rgb(221, 137, 10);
+  --flexibox-color-bg-widgets-connection-connected: rgb(100, 100, 100);
+  --flexibox-color-border-content: rgb(241, 99, 4);
+  --flexibox-color-border-drag: rgba(20, 200, 20, 0.4);
+  --flexibox-color-border-resize: rgb(20, 20, 20);
+  /* pseudo class styles */
+  --flexibox-hover-color-bg-widgets-connection: rgb(20, 200, 20);
+  --flexibox-hover-color-border-drag: rgb(20, 200, 20);
+  --flexibox-hover-color-border-content: rgb(210, 210, 210);
+  --flexibox-hover-color-border-resize: rgb(20, 200, 20);
+
+  /* === CURSORS === */
+  /* pseudo class styles */
+  --flexibox-active-cursor-drag: grabbing;
+  --flexibox-hover-cursor-drag: grab;
+  --flexibox-hover-cursor-resize-nw: nw-resize;
+  --flexibox-hover-cursor-resize-sw: sw-resize;
+  --flexibox-hover-cursor-resize-ne: ne-resize;
+  --flexibox-hover-cursor-resize-se: se-resize;
+
+  /* === FONTS === */
+  --flexibox-font-size: 1rem;
+  --flexibox-text-color: black;
+  --flexibox-font-family: 'Raleway', 'Roboto', 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+}
+
+/* === FLEXIBOX STYLING === */
+
+.flexibox {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  z-index: 1;
+}
+
+
+.grid.hidden {
+  background-image: none;
+}
+
+.flexibox .content {
+  position: relative;
+  top: 0px;
+  left: 0px;
+  margin: 5px;
+  padding: 5px;
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  box-sizing: border-box;
+  border: var(--flexibox-border-content);
+  border-radius: var(--flexibox-border-radius-content);
+  background-color: var(--flexibox-color-bg-content);
+  overflow: hidden;
+  font-size: var(--flexibox-font-size);
+  color: var(--flexibox-text-color);
+  font-family: var(--flexibox-font-family);
+  z-index: 3;
+}
+
+.flexibox .content.grid {
+  background-position: 6px 6px;
+  background-color: var(--flexibox-color-bg-grid); 
+  background-image: var(--flexibox-background-image-grid);
+}
+
+/* Used for hiding/display element by adding/removing to class list */
+/* Component will still take up space in the layout as if it were rendered and visible */
+.adornment.hidden {
+  visibility: hidden;
+}
+
+/*  === POSITIONING CONTROL ADORNMENTS === */
+
+/*  adornment-drag-handle:  an overlay onto the parent element with a border to indicate dragging available */
+.flexibox .adornment {
+  position: absolute;
+  display: inline-block;
+  background-color: transparent;
+  z-index: 2;
+}
+
+.flexibox .adornment:hover {
+  display: inline-block;
+}
+
+.flexibox .adornment.drag {
+  width: 100%;
+  height: 100%;
+  top: 0px;
+  left: 0px;
+  border: var(--flexibox-border-drag);
+  box-sizing: border-box;
+}
+
+.flexibox .adornment.drag:hover {
+  cursor: var(--flexibox-hover-cursor-drag);
+  border: var(--flexibox-hover-border-drag);
+  box-shadow: var(--flexibox-hover-box-shadow-drag);
+}
+
+.flexibox .adornment.drag:active {
+  cursor: var(--flexibox-active-cursor-drag);
+  border: var(--flexibox-active-border-drag);
+  box-shadow: var(--flexibox-active-box-shadow-drag);
+}
+
+/*  === RESIZE CONTROL ADORNMENTS ===                                                                                */
+/*                                                                                                                   */
+/*  adornment-resize-nw: resize indicator place in upper left corner of parent                                       */
+/*  adornment-resize-sw: resize indicator place in lower left corner of parent                                       */
+/*  adornment-resize-ne: resize indicator place in upper right corner of parent                                      */
+/*  adornment-resize-se: resize indicator place in lower right corner of parent                                      */
+
+.flexibox .adornment.resize {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  background-color: transparent;
+  border: var(--flexibox-border-resize);
+}
+
+.flexibox .adornment.resize.nw {
+  top: -1px;
+  left: -1px;
+  border-radius: var(--flexibox-border-radius-resize-nw);
+  border-style: var(--flexibox-border-style-resize-nw);
+}
+
+.flexibox .adornment.resize.sw {
+  bottom: -1px;
+  left: -1px;
+  border-radius: var(--flexibox-border-radius-resize-sw);
+  border-style: var(--flexibox-border-style-resize-sw);
+}
+
+.flexibox .adornment.resize.ne {
+  top: -1px;
+  right: -1px;
+  border-radius: var(--flexibox-border-radius-resize-ne);
+  border-style: var(--flexibox-border-style-resize-ne);
+}
+
+.flexibox .adornment.resize.se {
+  bottom: -1px;
+  right: -1px;
+  border-radius: var(--flexibox-border-radius-resize-se);
+  border-style: var(--flexibox-border-style-resize-se);
+}
+
+.flexibox .adornment.resize.nw:hover {
+  cursor: var(--flexibox-hover-cursor-resize-nw);
+  border-color: var(--flexibox-hover-color-border-resize);
+}
+
+.flexibox .adornment.resize.sw:hover {
+  cursor: var(--flexibox-hover-cursor-resize-sw);
+  border-color: var(--flexibox-hover-color-border-resize);
+}
+
+.flexibox .adornment.resize.ne:hover {
+  cursor: var(--flexibox-hover-cursor-resize-ne);
+  border-color: var(--flexibox-hover-color-border-resize);
+}
+
+.flexibox .adornment.resize.se:hover {
+  cursor: var(--flexibox-hover-cursor-resize-se);
+  border-color: var(--flexibox-hover-color-border-resize);
+}
+
+/*  === FLEXIGRAPH CONNECTION CONTROL ADORNMENTS ===                                                                 */
+/*                                                                                                                   */
+/*  adornment-connections: unordered list container for connections                                                  */
+/*  vertical:              sizes container for vertical placement                                                    */
+/*  horizontal:            sizes container for horizontal placement                                                  */
+/*  inputs:                locates container to the top (for horizontal connections) or left (for vertical           */
+/*                         connections)                                                                              */
+/*  outputs:               locates container to the bottom (for horizontal connections) or right (for vertical       */
+/*                         connections)                                                                              */
+/*  connected:             apply to li within an adornment-connections container to highlight the connection         */
+
+ul.adornment.connections {
+  position: absolute;
+  list-style-type: none;
+  margin: 0px;
+  padding: 0px;
+  z-index: 4;
+}
+
+ul.adornment.connections:hover {
+  cursor: pointer;
+  background-color: rgba(220, 120, 20, 0.5);
+}
+
+ul.adornment.connections.vertical {
+  top: 20px;
+  width: 10px;
+  height: calc(100% - 40px);
+}
+
+ul.adornment.connections.horizontal {
+  left: 20px;
+  width: calc(100% - 40px);
+  height: 10px;
+}
+
+ul.adornment.connections.vertical.inputs {
+  left: 8px;
+}
+
+ul.adornment.connections.vertical.outputs {
+  right: 8px;
+}
+
+ul.adornment.connections.horizontal.inputs {
+  top: 8px;
+}
+
+ul.adornment.connections.horizontal.outputs {
+  bottom: 8px;
+}
+
+ul.adornment.connections > li {
+  position: relative;
+  display: inline-block;
+  padding: 0px;
+  height: 10px;
+  width: 10px;
+}
+
+ul.adornment.connections > li:hover {
+  background-color: var(--flexibox-hover-bg-color-widgets-connection);
+  cursor: default;
+}
+
+ul.adornment.connections > li.connected {
+  background-color: var(--flexibox-bg-color-widgets-connection-connected);
+}
+
+ul.adornment.connections.horizontal > li {
+  margin: 0px 2px;
+  box-shadow: 1px 1px 2px rgba(20, 20, 20, 0.5);
+  border-radius: 0% 0% 50% 50%;
+}
+
+ul.adornment.connections.vertical > li {
+  margin: 2px 0px;
+  box-shadow: 1px -1px 2px rgba(20, 20, 20, 0.5);
+  border-radius: 0% 50% 50% 0%;
+}
