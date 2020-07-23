@@ -1,68 +1,37 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# flexibox
 
-## Available Scripts
+A flexible box React component.
 
-In the project directory, you can run:
+## Warning
 
-### `npm start`
+This project is in early development stage, do not use any code here in production.  You have been warned...
 
-Runs the app in the development mode.<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Demo Usage
 
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+1. Clone the repository to your local system (use the master branch if more than one branch exists).
+2. Change to the directory you cloned into.
+3. Install the dependencies by running `npm install`.
+4. Start the demo by running `npm start`.
+5. Browser should open automatically.  Demo is served at http://localhost:3000
 
-### `npm test`
+### Notes
+The current demo is very limited by shows the basic capability of positioning, resizing, grid snapping, and nested grid spacings.
 
-Launches the test runner in the interactive watch mode.<br />
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Requirements
 
-### `npm run build`
+- node (> v12)
+- npm (> v6)
 
-Builds the app for production to the `build` folder.<br />
-It correctly bundles React in production mode and optimizes the build for the best performance.
+All other dependencies must be installed by running `npm install` in the demo directory prior to running the demo.
 
-The build is minified and the filenames include the hashes.<br />
-Your app is ready to be deployed!
+# Licensing
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Copyright 2020, Brian Stephenson
 
-### `npm run eject`
+Licensed under the MIT License, (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+https://opensource.org/licenses/MIT
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/code-splitting
-
-### Analyzing the Bundle Size
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size
-
-### Making a Progressive Web App
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app
-
-### Advanced Configuration
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/advanced-configuration
-
-### Deployment
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/deployment
-
-### `npm run build` fails to minify
-
-This section has moved here: https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify
+A copy of the license is available in the repository's LICENSE file.
