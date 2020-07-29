@@ -1,26 +1,45 @@
-// Basic Flexibox component definitio - provides, snapping, resize and positioning capability
+// Basic Flexibox component definition - provides, snapping, resize and positioning capability
 // See Flexibox.css for styling definitions
-import React, { PropsWithChildren, useEffect, useRef, useState, useContext } from 'react';
+import React, { PropsWithChildren, useEffect, useRef, useState, createContext, ReactNode, ReactElement } from 'react';
 import {
   useFlexiboxInteractor,
   FlexiboxProps,
-  FlexiboxZoomContext,
-  FlexiboxGridContext,
-  FlexiboxDragControl,
-  FlexiboxResizeControl,
-  FlexiboxContent,
-  FlexiboxZoomControl,
-  FlexiboxGridControl,
+  FlexiboxState
 } from './';
 import './Flexibox.css';
+import { FlexiboxContextState } from './FlexiboxContextState';
+
+// Flexibox context - provide this elements' state to child elements
+export const FlexiboxContext = createContext<FlexiboxContextState>({});
 
 // Flexibox component
 export const Flexibox: React.FC<PropsWithChildren<FlexiboxProps>> = (props) => {
+
+  // Set default values for some optional props.
+  props = {
+    ...props,
+    minScale: props.minScale ?? 0.1,
+    maxScale: props.maxScale ?? 100,
+    scale: props.scale ?? 1.0,
+    zoomable: props.zoomable ?? false,
+    pannable: props.pannable ?? props.zoomable ?? false,
+    gridX: props.gridX ?? 15.0,
+    gridY: props.gridY ?? 15.0,
+    snapToGrid: props.snapToGrid ?? false,
+    showGrid: props.showGrid ?? false,
+    zoomStep: props.zoomStep ?? 0.1
+  }
+
+  // DOM element reference - realized during render
   const thisRef: React.MutableRefObject<HTMLDivElement | null> = useRef(null);
+
+  // Perform initialization whenever we re-render to the DOM and the DOM element reference changes
   const [elRef, setElRef] = useState({} as React.MutableRefObject<HTMLDivElement | null>);
+
+  const [context, setContext] = useState({} as FlexiboxContextState);
+
+  // Custom hook to handle all user interaction with the flexibox
   const { state, Interactor } = useFlexiboxInteractor(elRef?.current, props);
-  const zoomContext = useContext(FlexiboxZoomContext);
-  const gridContext = useContext(FlexiboxGridContext);
 
   // Perform initialization whenever we re-render to the DOM and the DOM element reference changes
   useEffect(() => {
@@ -28,61 +47,87 @@ export const Flexibox: React.FC<PropsWithChildren<FlexiboxProps>> = (props) => {
     if (thisRef) {
       setElRef(thisRef);
     }
-    if (elRef.current) {
-      // add the interaction targets for dragging and resizing the box
-      Interactor.addInteractionTarget({ selector: '.adornment.drag', interactionType: 'drag' });
-      Interactor.addInteractionTarget({ selector: '.adornment.resize.nw', interactionType: 'resize-nw' });
-      Interactor.addInteractionTarget({ selector: '.adornment.resize.sw', interactionType: 'resize-sw' });
-      Interactor.addInteractionTarget({ selector: '.adornment.resize.ne', interactionType: 'resize-ne' });
-      Interactor.addInteractionTarget({ selector: '.adornment.resize.se', interactionType: 'resize-se' });
-      console.log(
-        'Element ID: ' +
-        elRef.current.id +
-        '  ZoomContext: ' +
-        (zoomContext.setState !== undefined) +
-        ' GridContext: ' +
-        (gridContext.setState !== undefined) +
-        ' style:' +
-        props?.style
-      );
+    // add interaction elements only if flexibox element has been rendered.
+    if (elRef.current && elRef.current !== state.elementRef) {
+      Interactor.addInteractionTarget({ selector: '.clip-content > .content', interactionType: 'pan' });
+      Interactor.addInteractionTarget({ selector: '.draggable', interactionType: 'drag' });
+      Interactor.addInteractionTarget({ selector: '.resizeable.nw', interactionType: 'resize-nw' });
+      Interactor.addInteractionTarget({ selector: '.resizeable.sw', interactionType: 'resize-sw' });
+      Interactor.addInteractionTarget({ selector: '.resizeable.ne', interactionType: 'resize-ne' });
+      Interactor.addInteractionTarget({ selector: '.resizeable.se', interactionType: 'resize-se' });
+
+      setContext({
+        snapToGrid: props.snapToGrid ?? false,
+        gridX: props.gridX ?? 15,
+        gridY: props.gridY ?? 15,
+        scale: state.scale ?? props.scale ?? 1.0,
+        providerId: props.id ?? ''
+      })
     }
-  }, [elRef]);
+  }, [elRef, Interactor, state.elementRef, props.snapToGrid, props.zoomable, props.gridX, props.gridY, props.scale, state.scale, state.zoomable]);
+
+  // Update the context if the scale for child elements is changed 
+  useEffect(() => {
+    console.log('changing scale: ' + state.scale)
+    setContext({
+      ...context,
+      scale: state.scale
+    })
+  }, [state.scale]);
+
+  const getChildren = () => {
+    if (props.snapToGrid || props.zoomable) {
+      return <FlexiboxContext.Provider value={context}>{props.children}</FlexiboxContext.Provider>
+    } else {
+      return props.children;
+    }
+  }
+
+  const computeContentStyle = () => {
+    let width: string = '';
+    let height: string = '';
+    let transformOrigin: string;
+    let translate: string;
+    // width = state.scale ? `calc(100% / ${state.scale < 1 ? state.scale : 1})` : '';
+    // height = state.scale ? `calc(100% / ${state.scale < 1 ? state.scale : 1})` : '';
+    transformOrigin = state.contentOrigin ? `${state.contentOrigin.x}px ${state.contentOrigin.y}px` : '0px 0px';
+    translate = state.contentOrigin ? `translate(${state.contentOrigin.x}px, ${state.contentOrigin.y}px)` : 'translate(0px, 0px)';
+    return {
+      width,
+      height,
+      transformOrigin,
+      transform: state.scale ? `scale(${state.scale}) ${translate}` : 'scale(1) translate(0px, 0px)'
+    }
+
+  }
 
   // Builds the main content of the component
   return (
-    <FlexiboxZoomControl
-      canZoom={props.canZoom}
-      minZoom={props.minScale}
-      maxZoom={props.maxScale}
-      zoomStep={props.zoomStep}>
-      <FlexiboxGridControl
-        useGrid={props.useGrid}
-        showGrid={props.showGrid}
-        gridX={props.gridX}
-        gridY={props.gridY}
-        snapToGrid={props.snapToGrid}>
-        {/* COMPONENT DIV DEFINITION */}
+    <div
+      id={props.id}
+      ref={thisRef}
+      className={'flexibox ' + (props.showGrid ? 'grid' : '')}
+      style={{
+        top: state.bounds?.top ? `${state.bounds.y} px` : '',
+        left: state.bounds?.left ? `${state.bounds.x} px` : '',
+        height: state.bounds?.height ? `${state.bounds.height} px` : '100%',
+        width: state.bounds?.width ? `${state.bounds.width} px` : '100%',
+        backgroundSize: `${props.gridX} px ${props.gridY} px`,
+      }
+      }>
+      <div className={'adornment draggable'} />
+      <div className={'adornment resizeable sw'} />
+      <div className={'adornment resizeable ne'} />
+      <div className={'adornment resizeable se'} />
+      {props.draggable ? <div className='adornment resizeable nw' /> : ''}
+      <div className={'clip-content'}>
         <div
-          id={props.id}
-          ref={thisRef}
-          className={'flexibox'}
-          style={{
-            top: state.top ? `${state.top}px` : '',
-            left: state.left ? `${state.left}px` : '',
-            height: state.height ? `${state.height}px` : '100%',
-            width: state.width ? `${state.width}px` : '100%',
-            transform: props.canZoom ? `scale(${state.scale})` : '',
-          }}>
-          <FlexiboxDragControl canPosition={props.canPosition}>
-            <FlexiboxResizeControl canResize={props.canResize}>
-            </FlexiboxResizeControl>
-          </FlexiboxDragControl>
-          {/* INTERACTION CONTROLS */}
-          <FlexiboxContent className={(props.className || '') + ' ' + (props.useGrid && props.showGrid ? 'grid' : '')} style={{
-            backgroundSize: `${props.gridX!}px ${props.gridY!}px`,
-          }}>{props.children}</FlexiboxContent>
-        </div>
-      </FlexiboxGridControl>
-    </FlexiboxZoomControl >
+          className={'content ' + (props.className || '')}
+          style={{ ...computeContentStyle() }}
+        >
+          {getChildren()}
+        </div >
+      </div >
+    </div >
   );
 };

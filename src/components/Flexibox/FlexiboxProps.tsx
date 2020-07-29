@@ -1,32 +1,13 @@
-import { CSSProperties, ComponentPropsWithRef, ReactElement, ElementType, MutableRefObject } from 'react';
-export interface FlexiboxProps {
+import { CSSProperties } from 'react';
+import { FlexiboxState } from './';
+
+export interface FlexiboxProps extends FlexiboxState {
   id?: string;
-  ref?: MutableRefObject<HTMLDivElement | null>;
   style?: CSSProperties;
   className?: string;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  minWidth?: number;
-  maxWidth?: number;
-  minHeight?: number;
-  maxHeight?: number;
-  showGrid?: boolean;
-  gridX?: number;
-  gridY?: number;
-  zoomStep?: number;
-  maxZoom?: number;
-  minZoom?: number;
-  constrainToParentBounds?: boolean;
-  snapToGrid?: boolean;
-  canPosition?: boolean;
-  canZoom?: boolean;
-  canResize?: boolean;
-  useGrid?: boolean;
-  minScale?: number;
-  maxScale?: number;
+  // Events
   onZoom?: (scale: number) => void;
-  onPositionChanged?: (position: Position) => void;
+  onDrag?: (position: Position) => void;
   onResize?: (bounds: DOMRect) => void;
+  onDrop?: (data: string) => void;
 }

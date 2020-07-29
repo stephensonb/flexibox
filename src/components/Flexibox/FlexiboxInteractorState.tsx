@@ -1,31 +1,21 @@
-import { FlexiboxInteractionTypes, Flexibox } from './';
-import { FlexiboxInteractionTarget } from './useFlexiboxInteractor';
 import { ReactChild } from 'react';
+import { FlexiboxInteractionTypes, Position2D } from './';
+import { FlexiboxState } from './FlexiboxState';
+import { FlexiboxInteractionTarget } from './useFlexiboxInteractor';
 
 export interface FlexiboxInteractorState {
   bounds?: DOMRect;
-  canPosition?: boolean;
-  canResize?: boolean;
-  canZoom?: boolean;
-  constrainToParentBounds?: boolean;
+  children?: ReactChild[];
   draggingStartX?: number;
   draggingStartY?: number;
   elementRef?: HTMLDivElement | null;
-  gridX?: number;
-  gridY?: number;
+  contentOrigin?: Position2D;
+  initialState?: FlexiboxState;
+  context?: FlexiboxState;
   interactingElementBounds?: DOMRect | null;
   interactionTargets?: FlexiboxInteractionTarget[];
   interactionType?: FlexiboxInteractionTypes | null;
-  minHeight?: number;
-  minScale?: number;
-  minWidth?: number;
-  maxHeight?: number;
-  maxScale?: number;
-  maxWidth?: number;
+  zoomable?: boolean;
+  pannable?: boolean;
   scale?: number;
-  showGrid?: boolean;
-  snapToGrid?: boolean;
-  useGrid?: boolean;
-  zoomStep?: number;
-  children?: ReactChild[];
 }

@@ -1,5 +1,4 @@
-import { FlexiboxInteractorState, FlexiboxInteractorActions } from './';
-import { ReactElement } from 'react';
+import { FlexiboxInteractorState, FlexiboxInteractorActions, Position2D } from './';
 
 /**
  * Reducer function for the useFlexiboxInteractor hook.
@@ -11,6 +10,7 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
   state,
   action
 ) => {
+
   switch (action.type) {
     // Adds an interaction target to the interaction target list for the component
     case 'ADD_TARGET':
@@ -20,28 +20,78 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
       break;
     // Zooms in one step given by zoomStep (constrained by max scale)
     case 'ZOOM_IN':
-      if (state.scale && state.scale < state.maxScale!) {
-        return { ...state, scale: state.scale + state.zoomStep! };
+      console.log(state);
+      if (state.scale && state.scale < state.initialState?.maxScale!) {
+        return { ...state, scale: state.scale + state.initialState?.zoomStep! };
       }
       break;
     // Zooms out one step given by zoomStep (constrained by min scale)
     case 'ZOOM_OUT':
-      if (state.scale && state.scale > state.minScale!) {
-        return { ...state, scale: state.scale - state.zoomStep! };
+      console.log(state);
+      if (state.scale && (state.scale > state.initialState?.minScale!)) {
+        return { ...state, scale: state.scale - state.initialState?.zoomStep! };
       }
       break;
     // Zooms in to the max scale
     case 'ZOOM_MAX':
-      return { ...state, scale: state.maxScale! };
+      return { ...state, scale: state.initialState?.maxScale ?? 1.0 };
     // Zooms out to the minimum scale
     case 'ZOOM_MIN':
-      return { ...state, scale: state.minScale! };
+      return { ...state, scale: state.initialState?.minScale ?? 1.0 };
     // Zooms directly to a zoom value, constrained by the min or max zoom values
     case 'ZOOM_TO':
-      action.zoomTo.scale = action.zoomTo.scale > state.maxScale! ? state.maxScale! : action.zoomTo.scale;
-      action.zoomTo.scale = action.zoomTo.scale < state.minScale! ? state.minScale! : action.zoomTo.scale;
+      const maxScale = state.initialState?.maxScale ?? 1.0;
+      const minScale = state.initialState?.minScale ?? 1.0;
+      action.zoomTo.scale = (action.zoomTo.scale > maxScale) ? maxScale : action.zoomTo.scale;
+      action.zoomTo.scale = (action.zoomTo.scale < minScale) ? minScale : action.zoomTo.scale;
       const zoomToBounds = new DOMRect(action.zoomTo.x, action.zoomTo.y, state.bounds?.width, state.bounds?.height);
       return { ...state, scale: action.zoomTo.scale, bounds: zoomToBounds };
+    case 'PAN':
+      if (state.interactingElementBounds && state.bounds && state.contentOrigin && state.pannable && state.draggingStartX && state.draggingStartY) {
+
+        const scale = state.context?.scale ?? 1.0;
+        const deltaX = Math.floor((action.x - state.draggingStartX) / scale);
+        const deltaY = Math.floor((action.y - state.draggingStartY) / scale);
+        const newOrigin: Position2D = { x: 0, y: 0 };
+
+        // Adjust the content origin based on the distance panned from the start of panning
+        newOrigin.x = state.contentOrigin.x + deltaX;
+        newOrigin.y = state.contentOrigin.y + deltaY;
+
+        // Get the parent to the element being panned
+        const parent = state.elementRef?.parentElement as HTMLDivElement;
+
+        // Parent div should have the class name of 'clip-content'
+        if (parent.classList.contains('clip-content')) {
+          // Get the updated bounding rectangle of the content div
+          const contentBounds = new DOMRect(
+            newOrigin.x,
+            newOrigin.y,
+            state.interactingElementBounds.width,
+            state.interactingElementBounds.height
+          );
+          if (parent) {
+            // Prevent right edge of content from panning to the left of the right edge of the parent bounds
+            if (contentBounds.right <= (parent.clientLeft + parent.clientWidth)) {
+              newOrigin.x = parent.clientLeft + parent.clientWidth - contentBounds.width;
+            }
+            // Prevent bottom edge of content from panning above the bottom edge of the parent bounds
+            if (contentBounds.bottom <= (parent.clientTop + parent.clientHeight)) {
+              newOrigin.y = parent.clientTop + parent.clientTop - contentBounds.height;
+            }
+            // When panning to the right, don't pan the left edge of the content past the left edge of the parent
+            if (newOrigin.x > 0) {
+              newOrigin.x = 0;
+            }
+            // When panning down, don't pan the top edge of the content past the top edge of the parent
+            if (newOrigin.y > 0) {
+              newOrigin.y = 0;
+            }
+          }
+        }
+        return { ...state, contentOrigin: newOrigin };
+      }
+      break;
     // Moves or resizes the element, depending on state.interactionType.
     case 'MOVE':
       if (state.interactingElementBounds && state.draggingStartX && state.draggingStartY && state.bounds) {
@@ -53,8 +103,10 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
         );
 
         // scale the offset from the original start coordinates
-        const deltaX = Math.floor((action.x - state.draggingStartX) / state.scale!);
-        const deltaY = Math.floor((action.y - state.draggingStartY) / state.scale!);
+        // NOTE: scale is from the most recent enclosing context, NOT the scale value of the current component
+        const scale = state.context?.scale ?? 1.0;
+        const deltaX = Math.floor((action.x - state.draggingStartX) / scale);
+        const deltaY = Math.floor((action.y - state.draggingStartY) / scale);
 
         // adjust the interacting element bounds
         switch (state.interactionType) {
@@ -63,7 +115,7 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
             relBounds.y += deltaY;
             break;
           case 'resize-nw':
-            if (state.canPosition) {
+            if (state.initialState?.resizeable) {
               relBounds.x += deltaX;
               relBounds.y += deltaY;
               relBounds.width -= deltaX;
@@ -71,14 +123,14 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
             }
             break;
           case 'resize-sw':
-            if (state.canPosition) {
+            if (state.initialState?.resizeable) {
               relBounds.x += deltaX;
             }
             relBounds.width -= deltaX;
             relBounds.height += deltaY;
             break;
           case 'resize-ne':
-            if (state.canPosition) {
+            if (state.initialState?.resizeable) {
               relBounds.y += deltaY;
             }
             relBounds.width += deltaX;
@@ -90,7 +142,7 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
             break;
         }
 
-        if (state.constrainToParentBounds) {
+        if (state.initialState?.constrainToParent) {
           const parent = state.elementRef?.parentElement as HTMLDivElement;
 
           // adjust the target bounds to keep within the parent boundaries
@@ -123,23 +175,23 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
         }
 
         // check for min/max width and height constraints
-        if ((state.maxWidth && relBounds.width > state.maxWidth) || relBounds.width < (state.minWidth ?? 0)) {
+        if ((state.initialState?.maxWidth && relBounds.width > state.initialState.maxWidth) || relBounds.width < (state.initialState?.minWidth ?? 0)) {
           relBounds.x = state.bounds.x;
           relBounds.width = state.bounds.width;
         }
-        if ((state.maxHeight && relBounds.height > state.maxHeight) || relBounds.height < (state.minHeight ?? 0)) {
+        if ((state.initialState?.maxHeight && relBounds.height > state.initialState.maxHeight) || relBounds.height < (state.initialState?.minHeight ?? 0)) {
           relBounds.y = state.bounds.y;
           relBounds.height = state.bounds.height;
         }
 
-        // if snapping to a grid
-        if (state.useGrid && state.snapToGrid) {
-          if (state.gridX && state.gridY && state.scale) {
+        // if snapping to a grid (grid size and scale are from the enclosing context)
+        if (state.context?.snapToGrid) {
+          if (state.context?.gridX && state.context?.gridY) {
             // Snap the position and height and width to the grid
-            relBounds.x -= relBounds.x % state.gridX;
-            relBounds.y -= relBounds.y % state.gridY;
-            relBounds.width -= (relBounds.x + relBounds.width) % state.gridX;
-            relBounds.height -= (relBounds.y + relBounds.height) % state.gridY;
+            relBounds.x -= relBounds.x % state.context.gridX;
+            relBounds.y -= relBounds.y % state.context.gridY;
+            relBounds.width -= (relBounds.x + relBounds.width) % state.context.gridX;
+            relBounds.height -= (relBounds.y + relBounds.height) % state.context.gridY;
             // If re-sizing, make some adjustments to make sure the corner opposite the corner being dragged stays
             // in a fixed position to prevent a 'jitter' effect that is annoying visually.
             switch (state.interactionType) {
@@ -169,19 +221,6 @@ export const FlexiboxInteractorReducer: React.Reducer<FlexiboxInteractorState, F
     case 'RESET_VIEW':
       const bounds = new DOMRect(0, 0, state.bounds?.width, state.bounds?.height);
       return { ...state, bounds, scale: 1.0 };
-    case 'ADD_BOX':
-      state.children?.push(action.element);
-      return {
-        ...state, children: [...state.children ?? []]
-      }
-    case 'REMOVE_BOX':
-      const index = state.children?.findIndex((child) => ((child as ReactElement).props.id === action.id)) ?? -1;
-      if (index >= 0) {
-        state.children?.splice(index, 1);
-        return {
-          ...state, children: [...state.children ?? []]
-        }
-      }
   }
   return state;
 };
