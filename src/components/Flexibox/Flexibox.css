@@ -2,7 +2,7 @@
 
 :root {
   /* === BACKGROUNDS === */
-  --flexibox-background-image-grid: linear-gradient(to right, var(--flexibox-color-grid) 1px, transparent 1px),
+  --flexibox-background-image-grid: linear-gradient(to right, var(--flexibox-color-grid) 0.5px, transparent 1px),
     linear-gradient(to bottom, var(--flexibox-color-grid) 1px, transparent 1px);
 
   /* === BORDERS === */
@@ -29,14 +29,14 @@
   --flexibox-hover-box-shadow-drag: 0px 0px 5px 2px var(--flexibox-hover-color-border-drag);
 
   /* === COLORS === */
-  --flexibox-color-grid: grey;
+  --flexibox-color-grid: rgb(201, 201, 201);
   --flexibox-color-bg: rgb(230, 230, 230);
   --flexibox-color-bg-content: rgb(230, 230, 230);
-  --flexibox-color-bg-grid: rgb(70, 70, 70);
+  --flexibox-color-bg-grid: rgb(255, 255, 255);
   --flexibox-color-bg-resize: rgb(20, 20, 20);
   --flexibox-color-bg-widgets-connections: rgb(221, 137, 10);
   --flexibox-color-bg-widgets-connection-connected: rgb(100, 100, 100);
-  --flexibox-color-border-content: rgb(241, 99, 4);
+  --flexibox-color-border-content: rgb(80, 77, 218);
   --flexibox-color-border-drag: rgba(20, 200, 20, 0.4);
   --flexibox-color-border-resize: rgb(20, 20, 20);
   /* pseudo class styles */
@@ -68,76 +68,106 @@
   left: 0px;
   width: 100%;
   height: 100%;
-  background-color: transparent;
-  z-index: 1;
-}
-
-
-.grid.hidden {
-  background-image: none;
-}
-
-.flexibox .content {
-  position: relative;
-  top: 0px;
-  left: 0px;
-  margin: 5px;
-  padding: 5px;
-  width: calc(100% - 10px);
-  height: calc(100% - 10px);
   box-sizing: border-box;
   border: var(--flexibox-border-content);
   border-radius: var(--flexibox-border-radius-content);
-  background-color: var(--flexibox-color-bg-content);
-  overflow: hidden;
+  border-color: transparent;
+  background-color: var(--flexibox-color-bg);
+  text-align: center;
+  z-index: 0;
+}
+
+.flexibox.hide-adornments {
+  border: var(--flexibox-border-content);
+}
+
+.flexibox.selected {
+  border: solid 1px blue;
+  box-shadow: 0px 0px 10px blue;
+}
+
+.flexibox > .clip-content {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  box-sizing: border-box;
+  background: transparent;
+  overflow: auto;
   font-size: var(--flexibox-font-size);
   color: var(--flexibox-text-color);
   font-family: var(--flexibox-font-family);
-  z-index: 3;
+  z-index: 2;
 }
 
-.flexibox .content.grid {
-  background-position: 6px 6px;
+.flexibox > .clip-content > .content {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background-color: var(--flexibox-color-bg-content);
+  font-size: var(--flexibox-font-size);
+  color: var(--flexibox-text-color);
+  font-family: var(--flexibox-font-family);
+  z-index: 2;
+}
+
+/* .flexibox > .clip-content > .content { 
+  background-color: transparent;
+} */
+
+.flexibox > .clip-content > .content > .selectBox {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 0px;
+  height: 0px;
+  border: 1px solid blue;
+  background-color: rgba(174, 174, 255, 0.4);
+  z-index: 99;
+}
+
+.flexibox > .clip-content > .content.grid {
   background-color: var(--flexibox-color-bg-grid); 
   background-image: var(--flexibox-background-image-grid);
+  background-position: 5x 5px;
 }
 
 /* Used for hiding/display element by adding/removing to class list */
 /* Component will still take up space in the layout as if it were rendered and visible */
-.adornment.hidden {
+.flexibox.hide-adornments .adornment {
   visibility: hidden;
 }
 
 /*  === POSITIONING CONTROL ADORNMENTS === */
 
 /*  adornment-drag-handle:  an overlay onto the parent element with a border to indicate dragging available */
-.flexibox .adornment {
-  position: absolute;
+.flexibox .addornment {
   display: inline-block;
   background-color: transparent;
-  z-index: 2;
 }
 
-.flexibox .adornment:hover {
-  display: inline-block;
-}
-
-.flexibox .adornment.drag {
+.flexibox .adornment.draggable {
+  position: absolute;
   width: 100%;
   height: 100%;
   top: 0px;
   left: 0px;
   border: var(--flexibox-border-drag);
   box-sizing: border-box;
+  z-index: 1;
 }
 
-.flexibox .adornment.drag:hover {
+.flexibox .adornment.draggable:hover {
   cursor: var(--flexibox-hover-cursor-drag);
   border: var(--flexibox-hover-border-drag);
   box-shadow: var(--flexibox-hover-box-shadow-drag);
 }
 
-.flexibox .adornment.drag:active {
+.flexibox .adornment.draggable:active {
   cursor: var(--flexibox-active-cursor-drag);
   border: var(--flexibox-active-border-drag);
   box-shadow: var(--flexibox-active-box-shadow-drag);
@@ -150,58 +180,61 @@
 /*  adornment-resize-ne: resize indicator place in upper right corner of parent                                      */
 /*  adornment-resize-se: resize indicator place in lower right corner of parent                                      */
 
-.flexibox .adornment.resize {
+.flexibox .adornment.resizeable {
   position: absolute;
   width: 15px;
   height: 15px;
-  background-color: transparent;
   border: var(--flexibox-border-resize);
 }
 
-.flexibox .adornment.resize.nw {
+.flexibox .adornment.resizeable.nw {
   top: -1px;
   left: -1px;
   border-radius: var(--flexibox-border-radius-resize-nw);
   border-style: var(--flexibox-border-style-resize-nw);
+  z-index: 1;
 }
 
-.flexibox .adornment.resize.sw {
+.flexibox .adornment.resizeable.sw {
   bottom: -1px;
   left: -1px;
   border-radius: var(--flexibox-border-radius-resize-sw);
   border-style: var(--flexibox-border-style-resize-sw);
+  z-index: 1;
 }
 
-.flexibox .adornment.resize.ne {
+.flexibox .adornment.resizeable.ne {
   top: -1px;
   right: -1px;
   border-radius: var(--flexibox-border-radius-resize-ne);
   border-style: var(--flexibox-border-style-resize-ne);
+  z-index: 1;
 }
 
-.flexibox .adornment.resize.se {
+.flexibox .adornment.resizeable.se {
   bottom: -1px;
   right: -1px;
   border-radius: var(--flexibox-border-radius-resize-se);
   border-style: var(--flexibox-border-style-resize-se);
+  z-index: 1;
 }
 
-.flexibox .adornment.resize.nw:hover {
+.flexibox .adornment.resizeable.nw:hover {
   cursor: var(--flexibox-hover-cursor-resize-nw);
   border-color: var(--flexibox-hover-color-border-resize);
 }
 
-.flexibox .adornment.resize.sw:hover {
+.flexibox .adornment.resizeable.sw:hover {
   cursor: var(--flexibox-hover-cursor-resize-sw);
   border-color: var(--flexibox-hover-color-border-resize);
 }
 
-.flexibox .adornment.resize.ne:hover {
+.flexibox .adornment.resizeable.ne:hover {
   cursor: var(--flexibox-hover-cursor-resize-ne);
   border-color: var(--flexibox-hover-color-border-resize);
 }
 
-.flexibox .adornment.resize.se:hover {
+.flexibox .adornment.resizeable.se:hover {
   cursor: var(--flexibox-hover-cursor-resize-se);
   border-color: var(--flexibox-hover-color-border-resize);
 }
