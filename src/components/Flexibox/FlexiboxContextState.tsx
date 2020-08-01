@@ -2,6 +2,6 @@ export interface FlexiboxContextState {
     snapToGrid?: boolean;
     gridX?: number;
     gridY?: number;
-    scale?: number;
+    containerScale?: number;
     providerId?: string;
 }

@@ -2,7 +2,7 @@
 
 :root {
   /* === BACKGROUNDS === */
-  --flexibox-background-image-grid: linear-gradient(to right, var(--flexibox-color-grid) 1px, transparent 1px),
+  --flexibox-background-image-grid: linear-gradient(to right, var(--flexibox-color-grid) 0.5px, transparent 1px),
     linear-gradient(to bottom, var(--flexibox-color-grid) 1px, transparent 1px);
 
   /* === BORDERS === */
@@ -29,14 +29,14 @@
   --flexibox-hover-box-shadow-drag: 0px 0px 5px 2px var(--flexibox-hover-color-border-drag);
 
   /* === COLORS === */
-  --flexibox-color-grid: grey;
+  --flexibox-color-grid: rgb(201, 201, 201);
   --flexibox-color-bg: rgb(230, 230, 230);
   --flexibox-color-bg-content: rgb(230, 230, 230);
-  --flexibox-color-bg-grid: rgb(70, 70, 70);
+  --flexibox-color-bg-grid: rgb(255, 255, 255);
   --flexibox-color-bg-resize: rgb(20, 20, 20);
   --flexibox-color-bg-widgets-connections: rgb(221, 137, 10);
   --flexibox-color-bg-widgets-connection-connected: rgb(100, 100, 100);
-  --flexibox-color-border-content: rgb(241, 99, 4);
+  --flexibox-color-border-content: rgb(80, 77, 218);
   --flexibox-color-border-drag: rgba(20, 200, 20, 0.4);
   --flexibox-color-border-resize: rgb(20, 20, 20);
   /* pseudo class styles */
@@ -72,13 +72,18 @@
   border: var(--flexibox-border-content);
   border-radius: var(--flexibox-border-radius-content);
   border-color: transparent;
+  background-color: var(--flexibox-color-bg);
   text-align: center;
   z-index: 0;
 }
 
 .flexibox.hide-adornments {
-  position: absolute;
   border: var(--flexibox-border-content);
+}
+
+.flexibox.selected {
+  border: solid 1px blue;
+  box-shadow: 0px 0px 10px blue;
 }
 
 .flexibox > .clip-content {
@@ -100,22 +105,35 @@
   position: absolute;
   top: 0px;
   left: 0px;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   background-color: var(--flexibox-color-bg-content);
   font-size: var(--flexibox-font-size);
   color: var(--flexibox-text-color);
   font-family: var(--flexibox-font-family);
-  transform-origin: 0px 0px;
   z-index: 2;
 }
 
-.flexibox.grid > .clip-content > .content { 
+/* .flexibox > .clip-content > .content { 
   background-color: transparent;
+} */
+
+.flexibox > .clip-content > .content > .selectBox {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  width: 0px;
+  height: 0px;
+  border: 1px solid blue;
+  background-color: rgba(174, 174, 255, 0.4);
+  z-index: 99;
 }
 
-.flexibox.grid {
+.flexibox > .clip-content > .content.grid {
   background-color: var(--flexibox-color-bg-grid); 
   background-image: var(--flexibox-background-image-grid);
+  background-position: 5x 5px;
 }
 
 /* Used for hiding/display element by adding/removing to class list */

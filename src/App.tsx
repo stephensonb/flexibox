@@ -17,12 +17,12 @@ function App() {
   }
 
   const Fluidity: FluidityGraph = {
-    rootProps: { id: uuid(), zoomable: true, constrainToParent: true, draggable: false, resizeable: false, showGrid: false, gridX: 15, gridY: 15, snapToGrid: true, className: "diagram" },
+    rootProps: { id: uuid(), zoomable: true, constrainToParent: true, draggable: false, resizeable: false, showGrid: true, gridX: 15, gridY: 15, snapToGrid: true, className: "diagram" },
     children: []
   }
 
   const rootNode: FluidityNode = {
-    props: { id: uuid(), x: 100, y: 100, width: 800, height: 800, zoomable: true, constrainToParent: true, resizeable: true, draggable: true, showGrid: true, gridX: 5, gridY: 5, snapToGrid: true },
+    props: { id: uuid(), x: 100, y: 100, width: 800, height: 800, zoomable: true, pannable: true, constrainToParent: true, resizeable: true, draggable: true, showGrid: true, gridX: 5, gridY: 5, snapToGrid: true },
     parentId: Fluidity.rootProps.id ?? '',
     content: '',
     children: []

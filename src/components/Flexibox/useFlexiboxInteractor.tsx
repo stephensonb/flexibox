@@ -1,131 +1,93 @@
-import { MutableRefObject, useContext, useEffect, useReducer } from 'react';
+import { MutableRefObject, useContext, useLayoutEffect, useReducer, useRef } from 'react';
 import { isArray } from 'util';
-import { FlexiboxContext, FlexiboxInteractorReducer, FlexiboxState } from './';
+import { FlexiboxContext, FlexiboxInteractorReducer, MouseButtons } from './';
+import { FlexiboxInteractorState } from './FlexiboxInteractorState';
+import { FlexiboxProps } from './FlexiboxProps';
 
 // local global variable that indicates if an interaction is occuring with any flexibox element
 let isAnimating = false;
 
-export type FlexiboxInteractionTypes = 'pan' | 'drag' | 'resize-nw' | 'resize-sw' | 'resize-ne' | 'resize-se';
+export type FlexiboxInteractionTypes = 'pan' | 'drag' | 'resize' | 'select';
 
 export interface FlexiboxInteractionTarget {
   interactionType: FlexiboxInteractionTypes;
   selector: string[] | string;
+  buttonState: MouseButtons;
 }
 
 // Component definition
-export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: FlexiboxState) => {
+export const useFlexiboxInteractor = (props: FlexiboxProps) => {
 
+  // get the context provider for enclosing container (or null if no enclosing container present)
   const context = useContext(FlexiboxContext);
 
-  // Update reducer state if context changes
-  useEffect(() => {
-    if (context) {
-      console.log('Context changes, setting state...');
-      // Update the DOM element reference
-      dispatch({
-        type: 'SET_STATE',
-        state: {
-          context
-        },
-      });
-    };
+  // Reducer does the heavy lifting - it executes the actions that mutate the element's state
+  let [state, dispatch] = useReducer(FlexiboxInteractorReducer, { ...props });
+
+  // mutable reference for the local interactor state
+  const reducerState: MutableRefObject<FlexiboxInteractorState> = useRef({});
+
+  reducerState.current = state;
+
+  useLayoutEffect(() => {
+    dispatch({ type: 'SET_CONTAINER_SCALE', scale: context.containerScale ?? 1 });
+    dispatch({ type: 'SET_GRID_XY', gridX: context.gridX ?? 1, gridY: context.gridY ?? 1 });
+    dispatch({ type: 'SET_GRID_SNAP', snapToGrid: context.snapToGrid ?? false });
   }, [context]);
 
-  // Reducer does the heavy lifting - it executes the actions that mutate the element's state
-  const [state, dispatch] = useReducer(FlexiboxInteractorReducer, { initialState });
-
   // Update reducer state if DOM element reference changes
-  useEffect(() => {
-    if (ref && ref !== state.elementRef) {
-      // Update the DOM element reference
-      dispatch({
-        type: 'SET_STATE',
-        state: {
-          elementRef: ref,
-          initialState,
-          interactingElementBounds: null,
-          interactionType: null,
-          bounds: new DOMRect(
-            initialState.x ?? ref?.offsetLeft,
-            initialState.y ?? ref?.offsetTop,
-            initialState.width ?? ref?.offsetWidth,
-            initialState.height ?? ref?.offsetHeight
-          ),
-          draggingStartX: 0,
-          draggingStartY: 0,
-          contentOrigin: { x: 0, y: 0 },
-          interactionTargets: [],
-          children: [],
-          zoomable: initialState.zoomable,
-          scale: initialState.scale,
-          pannable: initialState.pannable
-        },
-      });
-    };
-  }, [ref, initialState, state.elementRef]);
+  useLayoutEffect(() => {
+    if (reducerState.current.elementRef) {
 
-  // Add events when the element is re-rendered (the DOM reference changes)
-  useEffect(() => {
-    if (state.elementRef) {
-      state.elementRef.addEventListener('mousedown', mouseDown);
-      state.elementRef.addEventListener('mouseenter', mouseEnter);
-      state.elementRef.addEventListener('mouseleave', mouseLeave);
-      // If interactor element is zoomable, add the wheel events
-      if (state.zoomable) {
-        // Prevent document window from overriding desired wheel event behavior
-        document.addEventListener('wheel', wheelHandler, {
-          passive: false,
-        });
-        // Add the wheel event listener to the interactor element
-        state.elementRef.addEventListener('wheel', wheelHandler);
+      const currentRef = reducerState.current.elementRef;
+
+      // Add interaction targets
+
+      // add select box target to content div
+      dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.clip-content', interactionType: 'select', buttonState: MouseButtons.LeftButton + MouseButtons.shiftKey } });
+
+      // add contents panning target to scrollable clip-contents div
+      if (reducerState.current.pannable) {
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.clip-content', interactionType: 'pan', buttonState: MouseButtons.LeftButton } });
       }
+
+      // add element dragging target
+      if (reducerState.current.draggable) {
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.draggable', interactionType: 'drag', buttonState: MouseButtons.LeftButton } });
+      }
+
+      // add element resizing targets
+      if (reducerState.current.resizeable) {
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.resizeable.nw', interactionType: 'resize', buttonState: MouseButtons.LeftButton } });
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.resizeable.sw', interactionType: 'resize', buttonState: MouseButtons.LeftButton } });
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.resizeable.ne', interactionType: 'resize', buttonState: MouseButtons.LeftButton } });
+        dispatch({ type: 'ADD_TARGET', interactionTarget: { selector: '.resizeable.se', interactionType: 'resize', buttonState: MouseButtons.LeftButton } });
+      }
+
+      // Add events
+      currentRef?.addEventListener('mousedown', mouseDown);
+      currentRef?.addEventListener('mouseenter', mouseEnter);
+      currentRef?.addEventListener('mouseleave', mouseLeave);
+
+      // If interactor element is zoomable, add the wheel events
+      if (reducerState.current.zoomable) {
+        // Add the wheel event listener to the interactor element
+        currentRef?.addEventListener('wheel', wheelHandler);
+      }
+
       // on initial display of component, hide any control adornments
-      hideAdornments(state.elementRef);
+      hideAdornments();
+
+      // cleanup code - remove events from the current element if it is being unmounted
+      return () => {
+        currentRef?.removeEventListener('mousedown', mouseDown);
+        currentRef?.removeEventListener('mouseenter', mouseEnter);
+        currentRef?.removeEventListener('mouseleave', mouseLeave);
+        // document.removeEventListener('wheel', wheelHandler);
+        currentRef?.removeEventListener('wheel', wheelHandler);
+      };
     }
-
-    // cleanup code - remove events from the current element if it is being unmounted
-    return () => {
-      if (state.elementRef) {
-        state.elementRef.removeEventListener('mousedown', mouseDown);
-        state.elementRef.removeEventListener('mouseenter', mouseEnter);
-        state.elementRef.removeEventListener('mouseleave', mouseLeave);
-        document.removeEventListener('wheel', wheelHandler);
-        state.elementRef.removeEventListener('wheel', wheelHandler);
-      }
-    };
-  }, [state.elementRef]);
-
-  // Handle when zoomable changes
-  useEffect(() => {
-    if (state.elementRef) {
-      // If interactor element is zoomable, add the wheel events
-      if (state.zoomable) {
-        // Prevent document window from overriding desired wheel event behavior
-        document.addEventListener('wheel', wheelHandler, {
-          passive: false,
-        });
-        // Add the wheel event listener to the interactor element
-        state.elementRef.addEventListener('wheel', wheelHandler);
-      }
-    }
-
-    // cleanup code - remove events from the current element if it is being unmounted
-    return () => {
-      if (state.elementRef) {
-        document.removeEventListener('wheel', wheelHandler);
-        state.elementRef.removeEventListener('wheel', wheelHandler);
-      }
-    };
-  }, [state.elementRef, state.zoomable]);
-
-  // Adds elements that are used to control the available interactions on the flexibox.  Elements can be added
-  // by id, name, class name, or ref to an HTMLElement
-  const addInteractionTarget = (target: FlexiboxInteractionTarget) => {
-    dispatch({
-      type: 'ADD_TARGET',
-      interactionTarget: target,
-    });
-  };
+  }, [reducerState.current.elementRef, reducerState.current.draggable, reducerState.current.pannable, reducerState.current.zoomable, reducerState.current.resizeable]);
 
   // Select all elements in the DOM matching the CSS selector, scoped to the containing element
   const queryScopedSelectorAll = (element: HTMLElement | null, selector: string): NodeListOf<Element> => {
@@ -142,34 +104,46 @@ export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: 
   //
   // If no interaction target found for the event target element, then returns null.  Usually this means the event
   // is not to be handled by the interactor and will be passed along to other listeners.
-  const findInteractionTargetForEvent = (event: Event) => {
-    const dispatcher = event.target as HTMLElement;
+  const findInteractionTargetForEvent = (event: Event, buttonState: MouseButtons) => {
     const listener = event.currentTarget as HTMLElement;
+    let dispatcher = event.target as HTMLElement;
 
-    // see if the element that dispatched the event is an interaction target
+    // If the event dispatcher was the content div of the box then reset the dispatcher to the containing div ('clip-content')
+    if (dispatcher.classList.contains('content')) {
+      dispatcher = dispatcher.parentElement as HTMLElement;
+    }
+
     let target: FlexiboxInteractionTarget | null = null;
-    // We only look for interaction targets within the element that the event is attached to (the listener)
+
+    // See if the element that dispatched the event is an interaction target -- we only look for interaction targets within the
+    // element that the event is attached to(the listener)
     if (dispatcher.parentElement === listener) {
-      if (state.interactionTargets) {
-        for (let i = 0; i < state.interactionTargets.length && target === null; i++) {
-          const elements: NodeListOf<Element>[] = [];
-          const selector = state.interactionTargets[i].selector;
-          // Accumulate a list of all elements for the selectors for this interaction target
-          if (typeof selector === 'string') {
-            elements.push(queryScopedSelectorAll(listener, selector as string));
-          } else if (isArray(selector)) {
-            const selectors = selector as string[];
-            for (let j = 0; j < selectors.length; j++) {
-              const selector = selectors[j];
-              elements.push(queryScopedSelectorAll(listener, selector));
-            }
-          }
-          // cycle through all elements matching the list of selectors and return the first one that matches
-          // the target element for the event passed into the function
-          for (let nodeListIndex = 0; nodeListIndex < elements.length; nodeListIndex++) {
-            for (let nodeIndex = 0; nodeIndex < elements[nodeListIndex].length; nodeIndex++) {
-              if (elements[nodeListIndex][nodeIndex] === dispatcher) {
-                target = state.interactionTargets[i];
+      if (reducerState.current.interactionTargets) {
+        for (let i = 0; i < reducerState.current.interactionTargets.length && target === null; i++) {
+          // Only check targets with a matching button state (combo of mouse buttons + shift/ctrl/alt keys)
+          if (reducerState.current.interactionTargets[i].buttonState === buttonState) {
+            const elements: NodeListOf<Element>[] = [];
+            const selector = reducerState.current.interactionTargets[i].selector;
+            // handle a single selector definition
+            if (typeof selector === 'string') {
+              // Accumulate a list of all elements matching the selector for this interaction target
+              elements.push(queryScopedSelectorAll(listener, selector as string));
+            } else
+              // handle an array of selector definitions
+              if (isArray(selector)) {
+                const selectors = selector as string[];
+                for (let j = 0; j < selectors.length; j++) {
+                  const selector = selectors[j];
+                  elements.push(queryScopedSelectorAll(listener, selector));
+                }
+              }
+            // cycle through all elements matching the list of selectors and return the first one that matches
+            // the target element for the event passed into the function
+            for (let nodeListIndex = 0; nodeListIndex < elements.length; nodeListIndex++) {
+              for (let nodeIndex = 0; nodeIndex < elements[nodeListIndex].length; nodeIndex++) {
+                if (elements[nodeListIndex][nodeIndex] === dispatcher) {
+                  target = reducerState.current.interactionTargets[i];
+                }
               }
             }
           }
@@ -179,39 +153,113 @@ export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: 
     return target;
   };
 
-  // Begin interaction with the flexibox (drag, resize, ...)
-  const startMouseInteraction = (
-    target: HTMLElement,
-    interactionType: FlexiboxInteractionTypes,
-    x: number,
-    y: number
-  ) => {
-    // Add event listeners for further interaction 
-    document.addEventListener('mousemove', mouseMoved);
-    document.addEventListener('mouseup', mouseUp);
-    // If panning the contents of an element, change the cursor
-    if (interactionType === 'pan') {
-      target.style.cursor = 'grabbing';
+  const getMousePositionOffset = (e: MouseEvent, relativeToElement: HTMLElement | undefined | null) => {
+    if (relativeToElement) {
+      // Calculate the starting mouse position offset
+      // get the aggregate scale to calculate offsetX and offsetY position (mouse position relative to top,left of element)
+      const agScale = (reducerState.current.scale ?? 1) * (reducerState.current.containerScale ?? 1);
+      // get the bounding rectangle of the element
+      const containerBounds = relativeToElement.getBoundingClientRect();
+      return { x: (e.clientX - containerBounds.left) / agScale, y: (e.clientY - containerBounds.top) / agScale }
     }
-    dispatch({
-      type: 'SET_STATE',
-      state: {
-        interactingElementBounds: new DOMRect(target.offsetLeft, target.offsetTop, target.offsetWidth, target.offsetHeight), interactionType,
-        draggingStartX: x,
-        draggingStartY: y,
-      },
-    });
+
+    return { x: 0, y: 0 }
+  }
+
+  const beginMouseInteraction = (e: MouseEvent, interactionTarget: FlexiboxInteractionTarget) => {
+    // Get the DOM element clicked on 
+    const listener = e.currentTarget as HTMLElement;
+
+    // Set the initial bounds to the bounds of the current DOM element being interacted with.
+    let interactingElementBounds = new DOMRect(listener.offsetLeft, listener.offsetTop, listener.offsetWidth, listener.offsetHeight);
+
     isAnimating = true;
-  };
+
+    let position = getMousePositionOffset(e, listener.parentElement);
+
+    switch (interactionTarget.interactionType) {
+      case 'drag':
+        listener.style.cursor = 'grabbing';
+        break;
+      case 'pan':
+        position = getMousePositionOffset(e, listener);
+        listener.style.cursor = 'grabbing';
+        break;
+      case 'resize':
+        break;
+      case 'select':
+        position = getMousePositionOffset(e, listener);
+        interactingElementBounds = new DOMRect(position.x, position.y, 0, 0);
+        listener.style.cursor = 'copy'
+        break;
+      default:
+        isAnimating = false;
+        break;
+    }
+
+    if (isAnimating) {
+      // Add event listeners for further interaction 
+      document.addEventListener('mousemove', mouseMoved);
+      document.addEventListener('mouseup', mouseUp);
+      dispatch({
+        type: 'BEGIN_MOUSE_INTERACTION',
+        interactingElementBounds,
+        activeInteractorTarget: interactionTarget,
+        interactionStartMouseX: position.x,
+        interactionStartMouseY: position.y
+      });
+
+      // Since we handled this event, stop any other listeners from receiving it.
+      e.stopImmediatePropagation();
+
+      // Prevent any default handling of this event by the target element.
+      e.preventDefault();
+    }
+  }
+
+  const handleClickEvent = (e: MouseEvent) => {
+    const listener = e.currentTarget as HTMLElement;
+    if (listener === reducerState.current.elementRef) {
+      // OK, no interaction target was clicked, handle other cases.
+      // right button clicked
+      if (e.button === 0) {
+        // shift key held down - add element to select group
+        if (e.shiftKey) {
+          selectElement(reducerState.current.elementRef);
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        } else if (e.ctrlKey) {
+          // ctrl key held down - add/remove element from select group
+          if (reducerState.current.elementRef.classList.contains('selected')) {
+            reducerState.current.elementRef.classList.remove('selected');
+          } else {
+            reducerState.current.elementRef.classList.add('selected');
+          }
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        } else {
+          unSelectElements();
+          selectElement(reducerState.current.elementRef);
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }
+    }
+  }
 
   // Mouse down handler
   const mouseDown = (e: MouseEvent) => {
-    // Get the element that we are interacting with
-    let target = findInteractionTargetForEvent(e);
+    // Set flags indicating button/key states initiating this action
+    const buttonState = e.buttons + (e.shiftKey ? 32 : 0) + (e.ctrlKey ? 64 : 0) + (e.altKey ? 128 : 0);
+
+    // try and find an interaction target in the current element that was clicked on
+    let interactionTarget = findInteractionTargetForEvent(e, buttonState);
+
     // If the mouse down event happened over a valid interaction target element, then start interacting with it.
-    if (target) {
-      startMouseInteraction(e.currentTarget as HTMLElement, target.interactionType, e.clientX, e.clientY);
-      e.preventDefault();
+    if (interactionTarget) {
+      beginMouseInteraction(e, interactionTarget);
+    } else {
+      handleClickEvent(e);
     }
   };
 
@@ -221,8 +269,8 @@ export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: 
     if (!isAnimating) {
       const listener = e.currentTarget as HTMLElement;
       // If the element that fired this event is the interacting element, then show adornments when entering
-      if (listener === state.elementRef) {
-        showAdornments(listener);
+      if (listener === reducerState.current.elementRef) {
+        showAdornments();
       }
     }
     e.preventDefault();
@@ -234,65 +282,153 @@ export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: 
     if (!isAnimating) {
       const listener = e.currentTarget as HTMLElement;
       // If the element that fired this event is the interacting element, then hide adornments when leaving
-      if (listener === state.elementRef) {
-        hideAdornments(listener);
+      if (listener === reducerState.current.elementRef) {
+        hideAdornments();
       }
     }
     e.preventDefault();
   };
 
   // Update element position when mouse is moved (resize, drag, ...)
-  const mouseMoved = (event: MouseEvent) => {
-    console.log('mouse move: ' + state.elementRef?.id);
-    dispatch({
-      type: 'MOVE',
-      x: event.clientX,
-      y: event.clientY,
-    });
-    event.preventDefault();
+  const mouseMoved = (e: MouseEvent) => {
+    if (reducerState.current.elementRef) {
+      switch (reducerState.current.activeInteractionTarget?.interactionType) {
+        // drag box within parent
+        case 'drag':
+          dispatch({
+            type: 'DRAG',
+            // mouse position is relative to parent container element
+            ...getMousePositionOffset(e, reducerState.current.elementRef.parentElement)
+          });
+          break;
+        // resize the box
+        case 'resize':
+          dispatch({
+            type: 'RESIZE',
+            // mouse position is relative to parent container element
+            ...getMousePositionOffset(e, reducerState.current.elementRef.parentElement)
+          });
+          break;
+        // pan content view (if content scale > 1.0)
+        case 'pan':
+          dispatch({
+            type: 'PAN',
+            // mouse position is relative to current container element
+            ...getMousePositionOffset(e, reducerState.current.elementRef)
+          });
+          break;
+        case 'select':
+          dispatch({
+            type: 'RESIZE_SELECT_BOX',
+            // mouse position is relative to current container element
+            ...getMousePositionOffset(e, reducerState.current.elementRef)
+          });
+          // Update the group of elements enclosed by the select box
+          selectElements(reducerState.current.selectBoxBounds);
+          break;
+      }
+      e.preventDefault();
+    }
   };
 
   // End element interaction
   const mouseUp = (e: MouseEvent) => {
-    // remove mouse listeners
-    document.removeEventListener('mousemove', mouseMoved);
-    document.removeEventListener('mouseup', mouseUp);
-    // Null out the interacting element bounds
-    dispatch({
-      type: 'SET_STATE',
-      state: {
-        interactingElementBounds: null,
-      },
-    });
-    if (state.elementRef) {
-      // If the mouse pointer is outside of the interacting element bounds when mouse is released, then
-      // make sure to hide the adornments.
-      if (isAnimating && !isInsideElement(e.clientX, e.clientY, state.elementRef)) {
-        hideAdornments(state.elementRef);
+    // only handle if we were animating before from a previous mouse down event
+    if (isAnimating) {
+      // remove mouse listeners
+      document.removeEventListener('mousemove', mouseMoved);
+      document.removeEventListener('mouseup', mouseUp);
+
+      if (reducerState.current.elementRef) {
+        // if we were not drawing a select box, then go ahead and select the current element that the mouse up event was
+        // received on
+        if (reducerState.current.activeInteractionTarget?.interactionType !== 'select') {
+          unSelectElements();
+          selectElement(reducerState.current.elementRef);
+        }
+
+        // If the mouse pointer is outside of the interacting element bounds when mouse is released, then
+        // make sure to hide the adornments.
+        if (!isInsideElement(e.clientX, e.clientY, reducerState.current.elementRef)) {
+          hideAdornments();
+        }
+
+        // reset the cursor to the default
+        reducerState.current.elementRef.style.cursor = 'default';
       }
-      // reset the cursor
-      state.elementRef.style.cursor = 'default';
+
+      // Tell the reducer that mouse interaction has ended.
+      dispatch({ type: 'END_MOUSE_INTERACTION' });
+
+      isAnimating = false;
+      e.stopImmediatePropagation();
+      e.preventDefault();
     }
-    isAnimating = false;
-    e.preventDefault();
   };
 
   // Scroll wheel events used to zoom element (change its scale)
   const wheelHandler = (e: MouseWheelEvent) => {
     const listener = e.currentTarget as HTMLElement;
-    // only handle if the mouse is over the interacting element and it is zoomable
-    if (listener === state.elementRef && state.zoomable) {
-      console.log("id: " + listener.id + " zoom: " + state.scale);
-      // if deltaY is negative (scroll wheel rotated toward user), zoom out.
+
+    // only handle if the event target is the same as the element that this handler is
+    // attached to (not bubbled up from another element) and it is zoomable.
+    if (listener === reducerState.current.elementRef && reducerState.current.zoomable) {
+      // if deltaY is negative (scroll wheel rotated toward user), zoom out (shrink).
       if (e.deltaY > 0) {
-        zoomOut();
-      } else {
-        zoomIn();
-      }
+        dispatch({ type: 'ZOOM_OUT' });
+      } else
+        // deltaY is positive (mouse wheel rotated away from user), zoom in (magnify).
+        if (e.deltaY < 0) {
+          dispatch({ type: 'ZOOM_IN' });
+        }
+      // We stop immediate propogation to make sure no other zoomable elements respond to the 
+      // wheel event as well and that the browser does not try to scroll when we want to zoom
       e.stopImmediatePropagation();
       e.preventDefault();
     }
   };
+
+  // Adds a 'selected' class to the given element and sets the focus to it
+  const selectElement = (element: HTMLElement) => {
+    element.classList.add('selected');
+    element.focus();
+  }
+
+  // Removes the 'selected' class from the current elementRef and sets the focus to it
+  const unSelectElement = (element: HTMLElement) => {
+    element.classList.remove('selected');
+  }
+
+  // Selects all child flexibox elements enclosed by a given bounding rectangle
+  const selectElements = (bounds: DOMRect | undefined | null) => {
+    if (reducerState.current.elementRef && bounds) {
+      // get a list of all child elements with the class 'flexibox'
+      reducerState.current.elementRef.querySelectorAll('.flexibox').forEach(element => {
+        const el = element as HTMLElement;
+        if (el.offsetLeft >= bounds.left &&
+          el.offsetTop >= bounds.top &&
+          (el.offsetLeft + el.offsetWidth) <= bounds.right &&
+          (el.offsetTop + el.offsetHeight) <= bounds.bottom
+        ) {
+          // element bounds are within the select box, so add the selected class
+          el.classList.add('selected');
+        } else {
+          // element bounds are outside of the select box, so the selected class (ignored if it was not selected before)
+          el.classList.remove('selected');
+        }
+      });
+    }
+  }
+
+  // Unselect all selected child flexibox elements 
+  const unSelectElements = () => {
+    if (reducerState.current.elementRef) {
+      // get a list of all child elements with the class 'selected'
+      document.querySelectorAll('.flexibox.selected').forEach(element => {
+        element.classList.remove('selected');
+      });
+    }
+  }
 
   // Determines if the given coordinates are within the bounds of the given element
   const isInsideElement = (x: number, y: number, element: HTMLElement): boolean => {
@@ -301,162 +437,25 @@ export const useFlexiboxInteractor = (ref: HTMLDivElement | null, initialState: 
   }
 
   // Removes the 'hide-adornments' class from the interactor element.
-  const showAdornments = (element: HTMLElement) => {
-    state.elementRef?.classList.remove('hide-adornments');
+  const showAdornments = () => {
+    reducerState.current.elementRef?.classList.remove('hide-adornments');
   };
 
   // Adds the 'hide-adornments' class to the interactor element.
-  const hideAdornments = (element: HTMLElement) => {
-    state.elementRef?.classList.add('hide-adornments');
+  const hideAdornments = () => {
+    reducerState.current.elementRef?.classList.add('hide-adornments');
   };
-
-  /**
-   *
-   *
-   *
-   * Interactor API functions.  These functions are exposed through the returned object from useFlexiboxInteractor()
-   * They allow the component using this hook to manipulate the internal interactor state through these function calls.
-   *
-   *
-   *
-   *
-   */
-
-  // Enable zooming (scaling) the element with the mouse wheel
-  const enableZoom = () => {
-    // sync state in the reducer
-    dispatch({ type: 'SET_STATE', state: { zoomable: true } });
-  };
-
-  // Disable zooming (scaling) the element
-  const disableZoom = () => {
-    // sync state in the reducer
-    dispatch({ type: 'SET_STATE', state: { zoomable: false } });
-  };
-
-  // Return the top, left, width and height of the minimum bounding rectangle that would contain all children elements
-  const getExtents = (element?: HTMLElement | null) => {
-    element = element ?? state.elementRef;
-
-    // start with a zero sized boundary
-    const bounds = new DOMRect(0, 0, 0, 0);
-
-    if (element && element.children.length !== 0) {
-      for (let i = 0; i < element.children.length; i++) {
-        const childBounds = getExtents(element.children[i] as HTMLElement);
-        // initialize the minimum bounding box with the first child element
-        if (i === 0) {
-          bounds.x = childBounds.x;
-          bounds.y = childBounds.y;
-          bounds.width = childBounds.width;
-          bounds.height = childBounds.height;
-          continue;
-        }
-        if (childBounds.x < bounds.x) {
-          bounds.width += bounds.x - childBounds.x;
-          bounds.x = childBounds.x;
-        }
-        if (childBounds.y < bounds.y) {
-          bounds.height += bounds.y - childBounds.y;
-          bounds.y = childBounds.y;
-        }
-        if (childBounds.right > bounds.right) {
-          bounds.width += childBounds.right - bounds.right;
-        }
-        if (childBounds.bottom < bounds.bottom) {
-          bounds.height += childBounds.height - bounds.height;
-        }
-      }
-    }
-
-    return bounds;
-  };
-
-  // Set the zoom to 1.0 and set the top left position to (0,0)
-  const resetView = () => {
-    dispatch({ type: 'RESET_VIEW' });
-  };
-
-  // Increases scale by zoomStep;
-  const zoomIn = () => {
-    dispatch({ type: 'ZOOM_IN' });
-  };
-
-  // Sets scale to maxScale;
-  const zoomMax = () => {
-    dispatch({ type: 'ZOOM_MAX' });
-  };
-
-  // Sets scale to minScale;
-  const zoomMin = () => {
-    dispatch({ type: 'ZOOM_MIN' });
-  };
-
-  // Decreases scale by zoomStep;
-  const zoomOut = () => {
-    dispatch({ type: 'ZOOM_OUT' });
-  };
-
-  // Re-centers the view and sets the scale
-  const zoomTo = (centerX: number, centerY: number, scale: number) => {
-    dispatch({ type: 'ZOOM_TO', zoomTo: { x: centerX, y: centerY, scale } });
-  };
-
-  // Sets the scale and position so all child elements are visible within the parent's bounding box.  Aspect ratio is
-  // maintained and the element will be centered within the parent.
-  const zoomToExtents = () => {
-    const parent = state.elementRef?.parentElement;
-    if (parent) {
-      const extents = getExtents(state.elementRef);
-      // The scaling to use is the largest ratio between child width / parent width or child height / parent height
-      const xScale = parent.offsetWidth / extents.width;
-      const yScale = parent.offsetHeight / extents.height;
-
-      let x = 0;
-      let y = 0;
-      let scale = 1.0;
-
-      // Determine which axis to use for scaling so the child fits within the bounds of the parent
-      if (xScale === yScale) {
-        // scales are equal, so just use the x axis scaling and leave the position at 0,0
-        scale = xScale;
-      } else if (xScale < yScale) {
-        // x axis (width) used for scaling, center the element on the y axis, x = 0
-        y = parent.offsetHeight / 2 - (extents.height * xScale) / 2;
-        scale = xScale;
-      } else {
-        // y axis (height) used for scaling, center the element on the x axis, y = 0
-        x = parent.offsetWidth / 2 - (extents.width * yScale) / 2;
-        scale = yScale;
-      }
-
-      // zoom and set the new origin for the element within the parent
-      dispatch({ type: 'ZOOM_TO', zoomTo: { x, y, scale } });
-    };
-  };
-
-  const setElementRef = (ref: MutableRefObject<HTMLDivElement | null>): void => {
-    dispatch({ type: 'SET_STATE', state: { elementRef: ref.current } });
-  }
 
   // interactor functions that users of the hook call
-  const Interactor = {
-    addInteractionTarget,
-    enableZoom,
-    disableZoom,
-    getExtents,
-    resetView,
-    zoomIn,
-    zoomMax,
-    zoomMin,
-    zoomOut,
-    zoomTo,
-    zoomToExtents,
-    setElementRef
-  };
-
   return {
-    state,
-    Interactor,
+    state: {
+      elementBounds: reducerState.current.elementBounds,
+      zoomable: reducerState.current.zoomable,
+      scale: reducerState.current.scale,
+      selectBoxBounds: reducerState.current.selectBoxBounds,
+      clipDivRef: reducerState.current.clipDivRef,
+      contentDivRef: reducerState.current.contentDivRef
+    },
+    dispatch
   };
 };
